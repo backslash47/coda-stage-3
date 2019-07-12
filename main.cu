@@ -13,6 +13,8 @@
 const unsigned int bytes_per_elem = 128;
 const unsigned int io_bytes_per_elem = 96;
 
+// gpu modulus
+__constant__ uint8_t gpu_modulus[bytes_per_elem];
 
 using namespace std;
 using namespace cuFIXNUM;
@@ -21,8 +23,8 @@ template< typename fixnum >
 struct mul_and_convert {
   // redc may be worth trying over cios
   typedef modnum_monty_cios<fixnum> modnum;
-  __device__ void operator()(fixnum &r, fixnum a, fixnum b, fixnum my_mod) {
-      modnum mod = modnum(my_mod);
+  __device__ void operator()(fixnum &r, fixnum a, fixnum b) {
+      modnum mod = modnum(*(fixnum*)gpu_modulus);
 
       fixnum sm;
 
@@ -94,19 +96,14 @@ std::vector<uint8_t*> compute_product(std::vector<uint8_t*> a, std::vector<uint8
       input_b[i] = b[i/fn_bytes][i%fn_bytes];
     }
 
-    uint8_t *input_m = new uint8_t[fn_bytes * nelts];
-    for (int i = 0; i < fn_bytes * nelts; ++i) {
-      input_m[i] = input_m_base[i%fn_bytes];
-    }
+    cudaMemcpyToSymbol(gpu_modulus, input_m_base, bytes_per_elem);
 
-    // TODO reuse modulus as a constant instead of passing in nelts times
-    fixnum_array *res, *in_a, *in_b, *inM;
+    fixnum_array *res, *in_a, *in_b;
     in_a = fixnum_array::create(input_a, fn_bytes * nelts, fn_bytes);
     in_b = fixnum_array::create(input_b, fn_bytes * nelts, fn_bytes);
-    inM = fixnum_array::create(input_m, fn_bytes * nelts, fn_bytes);
     res = fixnum_array::create(nelts);
 
-    fixnum_array::template map<Func>(res, in_a, in_b, inM);
+    fixnum_array::template map<Func>(res, in_a, in_b);
 
     vector<uint8_t*> v_res = get_fixnum_array<fn_bytes, fixnum_array>(res, nelts);
 
@@ -114,11 +111,9 @@ std::vector<uint8_t*> compute_product(std::vector<uint8_t*> a, std::vector<uint8
 
     delete in_a;
     delete in_b;
-    delete inM;
     delete res;
     delete[] input_a;
     delete[] input_b;
-    delete[] input_m;
     return v_res;
 }
 
