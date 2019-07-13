@@ -17,9 +17,6 @@ using namespace cuFIXNUM;
 const unsigned int bytes_per_elem = 128;
 const unsigned int io_bytes_per_elem = 96;
 
-// gpu modulus
-__constant__ uint8_t fq_modulus[bytes_per_elem];
-
 template <typename fixnum>
 class GpuFq
 {
@@ -83,8 +80,8 @@ struct mul_and_convert {
   typedef modnum_monty_cios<fixnum> modnum;
   typedef GpuFq<fixnum> GpuFq;
 
-  __device__ void operator()(fixnum &r, fixnum a, fixnum b) {
-      modnum mod = modnum(*(fixnum*)fq_modulus);
+  __device__ void operator()(fixnum &r, fixnum a, fixnum b, fixnum m) {
+      modnum mod = modnum(m);
 
       GpuFq fqA = GpuFq::load(a, mod);
       GpuFq fqB = GpuFq::load(b, mod);
@@ -92,6 +89,7 @@ struct mul_and_convert {
       fqS.save(r);
   }
 };
+
 
 template< int fn_bytes, typename fixnum_array >
 void print_fixnum_array(fixnum_array* res, int nelts) {
@@ -124,14 +122,19 @@ uint8_t* compute_product(uint8_t* a, uint8_t* b, int nelts, uint8_t* input_m_bas
     typedef warp_fixnum<fn_bytes, word_fixnum> fixnum;
     typedef fixnum_array<fixnum> fixnum_array;
 
-    cudaMemcpyToSymbol(fq_modulus, input_m_base, bytes_per_elem);
+    // TODO: try to use constant memory
+    uint8_t *input_m = new uint8_t[fn_bytes * nelts];
+    for (int i = 0; i < fn_bytes * nelts; ++i) {
+      input_m[i] = input_m_base[i%fn_bytes];
+    }
 
-    fixnum_array *res, *in_a, *in_b;
+    fixnum_array *res, *in_a, *in_b, *inM;
     in_a = fixnum_array::create(a, fn_bytes * nelts, fn_bytes);
     in_b = fixnum_array::create(b, fn_bytes * nelts, fn_bytes);
+    inM = fixnum_array::create(input_m, fn_bytes * nelts, fn_bytes);
     res = fixnum_array::create(nelts);
 
-    fixnum_array::template map<Func>(res, in_a, in_b);
+    fixnum_array::template map<Func>(res, in_a, in_b, inM);
 
     uint8_t* v_res = get_fixnum_array<fn_bytes, fixnum_array>(res, nelts);
 
@@ -208,13 +211,6 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < n; ++i) {
       write_mnt_fq(res_y + i * bytes_per_elem, outputs);
     }
-
-    delete[] x0;
-    delete[] x1;
-    delete[] y0;
-    delete[] y1;
-    delete[] res_x;
-    delete[] res_y;
   }
 
   return 0;
