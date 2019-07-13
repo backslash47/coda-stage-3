@@ -20,13 +20,6 @@ const unsigned int io_bytes_per_elem = 96;
 // gpu modulus
 __constant__ uint8_t fq_modulus[bytes_per_elem];
 
-__device__ void* fqMod;
-
-template <typename fixnum>
-__device__ modnum_monty_cios<fixnum>* getFqMod() {
-  return (modnum_monty_cios<fixnum>*)fqMod;
-}
-
 template <typename fixnum>
 class GpuFq
 {
