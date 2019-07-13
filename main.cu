@@ -39,10 +39,8 @@ public:
     return GpuFq(result, mod);
   }
 
-  __device__ __forceinline__ fixnum save() {
-    fixnum result;
+  __device__ __forceinline__ void save(fixnum& result) {
     this->mod.from_modnum(result, this->data_);
-    return result;
   }
 
   __device__ __forceinline__ GpuFq operator*(const GpuFq &other) const
@@ -91,7 +89,7 @@ struct mul_and_convert {
       GpuFq fqA = GpuFq::load(a, mod);
       GpuFq fqB = GpuFq::load(b, mod);
       GpuFq fqS = fqA * fqB;
-      r = fqS.save();
+      fqS.save(r);
   }
 };
 
@@ -112,69 +110,42 @@ void print_fixnum_array(fixnum_array* res, int nelts) {
 }
 
 template< int fn_bytes, typename fixnum_array >
-vector<uint8_t*> get_fixnum_array(fixnum_array* res, int nelts) {
+uint8_t* get_fixnum_array(fixnum_array* res, int nelts) {
     int lrl = fn_bytes*nelts;
-    uint8_t local_results[lrl];
+    uint8_t* local_results = new uint8_t[lrl];
     int ret_nelts;
-    for (int i = 0; i < lrl; i++) {
-      local_results[i] = 0;
-    }
     res->retrieve_all(local_results, fn_bytes*nelts, &ret_nelts);
-    vector<uint8_t*> res_v;
-    for (int n = 0; n < nelts; n++) {
-      uint8_t* a = (uint8_t*)malloc(fn_bytes*sizeof(uint8_t));
-      for (int i = 0; i < fn_bytes; i++) {
-        a[i] = local_results[n*fn_bytes + i];
-      }
-      res_v.emplace_back(a);
-    }
-    return res_v;
+    return local_results;
 }
 
 
 template< int fn_bytes, typename word_fixnum, template <typename> class Func >
-std::vector<uint8_t*> compute_product(std::vector<uint8_t*> a, std::vector<uint8_t*> b, uint8_t* input_m_base) {
+uint8_t* compute_product(uint8_t* a, uint8_t* b, int nelts, uint8_t* input_m_base) {
     typedef warp_fixnum<fn_bytes, word_fixnum> fixnum;
     typedef fixnum_array<fixnum> fixnum_array;
-
-    int nelts = a.size();
-
-    uint8_t *input_a = new uint8_t[fn_bytes * nelts];
-    for (int i = 0; i < fn_bytes * nelts; ++i) {
-      input_a[i] = a[i/fn_bytes][i%fn_bytes];
-    }
-
-    uint8_t *input_b = new uint8_t[fn_bytes * nelts];
-    for (int i = 0; i < fn_bytes * nelts; ++i) {
-      input_b[i] = b[i/fn_bytes][i%fn_bytes];
-    }
 
     cudaMemcpyToSymbol(fq_modulus, input_m_base, bytes_per_elem);
 
     fixnum_array *res, *in_a, *in_b;
-    in_a = fixnum_array::create(input_a, fn_bytes * nelts, fn_bytes);
-    in_b = fixnum_array::create(input_b, fn_bytes * nelts, fn_bytes);
+    in_a = fixnum_array::create(a, fn_bytes * nelts, fn_bytes);
+    in_b = fixnum_array::create(b, fn_bytes * nelts, fn_bytes);
     res = fixnum_array::create(nelts);
 
     fixnum_array::template map<Func>(res, in_a, in_b);
 
-    vector<uint8_t*> v_res = get_fixnum_array<fn_bytes, fixnum_array>(res, nelts);
+    uint8_t* v_res = get_fixnum_array<fn_bytes, fixnum_array>(res, nelts);
 
     //TODO to do stage 1 field arithmetic, instead of a map, do a reduce
 
     delete in_a;
     delete in_b;
     delete res;
-    delete[] input_a;
-    delete[] input_b;
     return v_res;
 }
 
-uint8_t* read_mnt_fq(FILE* inputs) {
-  uint8_t* buf = (uint8_t*)calloc(bytes_per_elem, sizeof(uint8_t));
+void read_mnt_fq(uint8_t* dest, FILE* inputs) {
   // the input is montgomery representation x * 2^768 whereas cuda-fixnum expects x * 2^1024 so we shift over by (1024-768)/8 bytes
-  fread((void*)(buf), io_bytes_per_elem*sizeof(uint8_t), 1, inputs);
-  return buf;
+  fread((void*)(dest), io_bytes_per_elem*sizeof(uint8_t), 1, inputs);
 }
 
 void write_mnt_fq(uint8_t* fq, FILE* outputs) {
@@ -206,46 +177,44 @@ int main(int argc, char* argv[]) {
     size_t elts_read = fread((void *) &n, sizeof(size_t), 1, inputs);
     if (elts_read == 0) { break; }
 
-    std::vector<uint8_t*> x0;
+    uint8_t* x0 = new uint8_t[n * bytes_per_elem];
     for (size_t i = 0; i < n; ++i) {
-      x0.emplace_back(read_mnt_fq(inputs));
+      read_mnt_fq(x0 + i * bytes_per_elem, inputs);
     }
 
-    std::vector<uint8_t*> x1;
+    uint8_t* x1 = new uint8_t[n * bytes_per_elem];
     for (size_t i = 0; i < n; ++i) {
-      x1.emplace_back(read_mnt_fq(inputs));
+      read_mnt_fq(x1 + i * bytes_per_elem, inputs);
     }
 
-    std::vector<uint8_t*> res_x = compute_product<bytes_per_elem, u64_fixnum, mul_and_convert>(x0, x1, mnt4_modulus);
+    uint8_t* res_x = compute_product<bytes_per_elem, u64_fixnum, mul_and_convert>(x0, x1, n, mnt4_modulus);
 
     for (size_t i = 0; i < n; ++i) {
-      write_mnt_fq(res_x[i], outputs);
+      write_mnt_fq(res_x + i * bytes_per_elem, outputs);
     }
 
-    std::vector<uint8_t*> y0;
+    uint8_t* y0 = new uint8_t[n * bytes_per_elem];
     for (size_t i = 0; i < n; ++i) {
-      y0.emplace_back(read_mnt_fq(inputs));
+      read_mnt_fq(y0 + i * bytes_per_elem, inputs);
     }
 
-    std::vector<uint8_t*> y1;
+    uint8_t* y1 = new uint8_t[n * bytes_per_elem];
     for (size_t i = 0; i < n; ++i) {
-      y1.emplace_back(read_mnt_fq(inputs));
+      read_mnt_fq(y1 + i * bytes_per_elem, inputs);
     }
 
-    std::vector<uint8_t*> res_y = compute_product<bytes_per_elem, u64_fixnum, mul_and_convert>(y0, y1, mnt6_modulus);
-
-    for (size_t i = 0; i < n; ++i) {
-      write_mnt_fq(res_y[i], outputs);
-    }
+    uint8_t* res_y = compute_product<bytes_per_elem, u64_fixnum, mul_and_convert>(y0, y1, n, mnt6_modulus);
 
     for (size_t i = 0; i < n; ++i) {
-      free(x0[i]);
-      free(x1[i]);
-      free(y0[i]);
-      free(y1[i]);
-      free(res_x[i]);
-      free(res_y[i]);
+      write_mnt_fq(res_y + i * bytes_per_elem, outputs);
     }
+
+    delete x0;
+    delete x1;
+    delete y0;
+    delete y1;
+    delete res_x;
+    delete res_y;
   }
 
   return 0;
