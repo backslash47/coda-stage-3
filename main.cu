@@ -209,12 +209,12 @@ int main(int argc, char* argv[]) {
       write_mnt_fq(res_y + i * bytes_per_elem, outputs);
     }
 
-    delete x0;
-    delete x1;
-    delete y0;
-    delete y1;
-    delete res_x;
-    delete res_y;
+    delete[] x0;
+    delete[] x1;
+    delete[] y0;
+    delete[] y1;
+    delete[] res_x;
+    delete[] res_y;
   }
 
   return 0;
