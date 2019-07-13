@@ -10,35 +10,95 @@
 #include "modnum/modnum_monty_redc.cu"
 #include "modnum/modnum_monty_cios.cu"
 
+using namespace std;
+using namespace cuFIXNUM;
+
+
 const unsigned int bytes_per_elem = 128;
 const unsigned int io_bytes_per_elem = 96;
 
 // gpu modulus
-__constant__ uint8_t gpu_modulus[bytes_per_elem];
+__constant__ uint8_t fq_modulus[bytes_per_elem];
 
-using namespace std;
-using namespace cuFIXNUM;
+__device__ void* fqMod;
+
+template <typename fixnum>
+__device__ modnum_monty_cios<fixnum>* getFqMod() {
+  return (modnum_monty_cios<fixnum>*)fqMod;
+}
+
+template <typename fixnum>
+class GpuFq
+{
+  typedef modnum_monty_cios<fixnum> modnum;
+private:
+  fixnum data_;
+  modnum& mod;
+public:
+
+  __device__
+  GpuFq(const fixnum &data, modnum& mod) : data_(data), mod(mod) {}
+
+  __device__ static GpuFq load(const fixnum &data, modnum& mod) 
+  {
+    fixnum result;
+    mod.to_modnum(result, data);
+    return GpuFq(result, mod);
+  }
+
+  __device__ __forceinline__ fixnum save() {
+    fixnum result;
+    this->mod.from_modnum(result, this->data_);
+    return result;
+  }
+
+  __device__ __forceinline__ GpuFq operator*(const GpuFq &other) const
+  {
+    fixnum result;
+    this->mod.mul(result, this->data_, other.data_);
+    return GpuFq(result, this->mod);
+  }
+
+  __device__ __forceinline__ GpuFq operator+(const GpuFq &other) const
+  {
+    fixnum result;
+    this->mod.add(result, this->data_, other.data_);
+    return GpuFq(result, this->mod);
+  }
+
+  __device__ __forceinline__ GpuFq operator-(const GpuFq &other) const
+  {
+    fixnum result;
+    this->mod.sub(result, this->data_, other.data_);
+    return GpuFq(result, this->mod);
+  }
+
+  __device__ __forceinline__ GpuFq squared() const
+  {
+    fixnum result;
+    this->mod.sqr(result, this->data_);
+    return GpuFq(result, this->mod);
+  }
+
+  __device__ __forceinline__ bool is_zero() const
+  {
+    return fixnum::is_zero(this->data_);
+  }
+};
 
 template< typename fixnum >
 struct mul_and_convert {
   // redc may be worth trying over cios
   typedef modnum_monty_cios<fixnum> modnum;
+  typedef GpuFq<fixnum> GpuFq;
+
   __device__ void operator()(fixnum &r, fixnum a, fixnum b) {
-      modnum mod = modnum(*(fixnum*)gpu_modulus);
+      modnum mod = modnum(*(fixnum*)fq_modulus);
 
-      fixnum sm;
-
-      fixnum am;
-      fixnum bm;
-      mod.to_modnum(am, a);
-      mod.to_modnum(bm, b);
-
-      mod.mul(sm, am, bm);
-
-      fixnum s;
-      mod.from_modnum(s, sm);
-
-      r = s;
+      GpuFq fqA = GpuFq::load(a, mod);
+      GpuFq fqB = GpuFq::load(b, mod);
+      GpuFq fqS = fqA * fqB;
+      r = fqS.save();
   }
 };
 
@@ -96,7 +156,7 @@ std::vector<uint8_t*> compute_product(std::vector<uint8_t*> a, std::vector<uint8
       input_b[i] = b[i/fn_bytes][i%fn_bytes];
     }
 
-    cudaMemcpyToSymbol(gpu_modulus, input_m_base, bytes_per_elem);
+    cudaMemcpyToSymbol(fq_modulus, input_m_base, bytes_per_elem);
 
     fixnum_array *res, *in_a, *in_b;
     in_a = fixnum_array::create(input_a, fn_bytes * nelts, fn_bytes);
