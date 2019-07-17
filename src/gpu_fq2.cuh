@@ -36,8 +36,24 @@ public:
     return GpuFq2(this->c0 + other.c0, this->c1 + other.c1, this->non_residue);
   }
 
-  __device__ bool operator==(const GpuFq2 &other) const
+  __device__ __forceinline__ GpuFq2 operator-(const GpuFq2 &other) const
+  {
+    return GpuFq2(this->c0 - other.c0, this->c1 - other.c1, this->non_residue);
+  }
+
+  __device__ __forceinline__ bool operator==(const GpuFq2 &other) const
   {
     return (this->c0 == other.c0 && this->c1 == other.c1);
   }
+
+  __device__ GpuFq2 squared() const
+  {
+    /* Devegili OhEig Scott Dahab --- Multiplication and Squaring on Pairing-Friendly Fields.pdf; Section 3 (Complex squaring) */
+    const GpuFq &a = this->c0, &b = this->c1;
+    const GpuFq ab = a * b;
+
+    return GpuFq2((a + b) * (a + this->non_residue * b) - ab - this->non_residue * ab, ab + ab, this->non_residue);
+  }
+
+  __device__ __forceinline__ bool is_zero() const { return this->c0.is_zero() && this->c1.is_zero(); }
 };

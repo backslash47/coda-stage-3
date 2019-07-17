@@ -12,12 +12,30 @@ void print_array(uint8_t *a)
   printf("\n");
 }
 
+void print_double_array(uint8_t *a)
+{
+  printf("c0: ");
+  print_array(a);
+  printf("c1: ");
+  print_array(a + bytes_per_elem);
+}
+
 void printG1(uint8_t *src)
 {
-  printf("X:");
+  printf("X:\n");
   print_array(src);
-  printf("Y:");
+  printf("Y:\n");
   print_array(src + bytes_per_elem);
-  printf("Z:");
+  printf("Z:\n");
   print_array(src + 2 * bytes_per_elem);
+}
+
+void print_mnt4_G2(uint8_t *src)
+{
+  printf("X:\n");
+  print_double_array(src);
+  printf("Y:\n");
+  print_double_array(src + 2 * bytes_per_elem);
+  printf("Z:\n");
+  print_double_array(src + 4 * bytes_per_elem);
 }

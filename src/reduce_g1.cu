@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "reduce.hpp"
 #include "constants.hpp"
 
@@ -47,29 +49,10 @@ uint8_t *reduce_g1_internal(my_fixnum_array *res0, my_fixnum_array *res1, my_fix
     my_fixnum_array *new_in_a2 = my_fixnum_array::wrap(res2->get_ptr(), nelts / 2);
     my_fixnum_array *new_in_b2 = my_fixnum_array::wrap(res2->get_ptr() + bytes_per_elem * nelts / 2, nelts / 2);
 
-    // uint8_t *res0_binary = new uint8_t[bytes_per_elem * nelts];
-    // uint8_t *res1_binary = new uint8_t[bytes_per_elem * nelts];
-    // uint8_t *res2_binary = new uint8_t[bytes_per_elem * nelts];
-    // int dest_nelts;
-
-    // res0->retrieve_all(res0_binary, bytes_per_elem * nelts, &dest_nelts);
-    // res1->retrieve_all(res1_binary, bytes_per_elem * nelts, &dest_nelts);
-    // res2->retrieve_all(res2_binary, bytes_per_elem * nelts, &dest_nelts);
-
-    // my_fixnum_array *new_in_a0 = my_fixnum_array::create(res0_binary, nelts / 2, bytes_per_elem);
-    // my_fixnum_array *new_in_b0 = my_fixnum_array::create(res0_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
-    // my_fixnum_array *new_in_a1 = my_fixnum_array::create(res1_binary, nelts / 2, bytes_per_elem);
-    // my_fixnum_array *new_in_b1 = my_fixnum_array::create(res1_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
-    // my_fixnum_array *new_in_a2 = my_fixnum_array::create(res2_binary, nelts / 2, bytes_per_elem);
-    // my_fixnum_array *new_in_b2 = my_fixnum_array::create(res2_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
-
     // output is reused previous input
     my_fixnum_array *new_res0 = my_fixnum_array::wrap(in_b0->get_ptr(), nelts / 2);
     my_fixnum_array *new_res1 = my_fixnum_array::wrap(in_b1->get_ptr(), nelts / 2);
     my_fixnum_array *new_res2 = my_fixnum_array::wrap(in_b2->get_ptr(), nelts / 2);
-    // my_fixnum_array *new_res0 = my_fixnum_array::create(nelts / 2);
-    // my_fixnum_array *new_res1 = my_fixnum_array::create(nelts / 2);
-    // my_fixnum_array *new_res2 = my_fixnum_array::create(nelts / 2);
 
     return reduce_g1_internal(new_res0, new_res1, new_res2, new_in_a0, new_in_a1, new_in_a2, new_in_b0, new_in_b1, new_in_b2, nelts / 2);
   }
@@ -83,9 +66,9 @@ uint8_t *reduce_g1(uint8_t *a, int nelts)
 
   for (int i = 0; i < nelts / 2; i++)
   {
-    mempcpy(input_a0 + i * bytes_per_elem, a + 2 * i * bytes_per_elem, bytes_per_elem);
-    mempcpy(input_a1 + i * bytes_per_elem, a + 2 * i * bytes_per_elem + bytes_per_elem, bytes_per_elem);
-    mempcpy(input_a2 + i * bytes_per_elem, one, bytes_per_elem);
+    memcpy(input_a0 + i * bytes_per_elem, a + 3 * i * bytes_per_elem, bytes_per_elem);
+    memcpy(input_a1 + i * bytes_per_elem, a + 3 * i * bytes_per_elem + bytes_per_elem, bytes_per_elem);
+    memcpy(input_a2 + i * bytes_per_elem, a + 3 * i * bytes_per_elem + 2 * bytes_per_elem, bytes_per_elem);
   }
 
   uint8_t *input_b0 = new uint8_t[bytes_per_elem * nelts / 2];
@@ -94,9 +77,9 @@ uint8_t *reduce_g1(uint8_t *a, int nelts)
 
   for (int i = 0; i < nelts / 2; i++)
   {
-    mempcpy(input_b0 + i * bytes_per_elem, a + 2 * (i + nelts / 2) * bytes_per_elem, bytes_per_elem);
-    mempcpy(input_b1 + i * bytes_per_elem, a + 2 * (i + nelts / 2) * bytes_per_elem + bytes_per_elem, bytes_per_elem);
-    mempcpy(input_b2 + i * bytes_per_elem, one, bytes_per_elem);
+    mempcpy(input_b0 + i * bytes_per_elem, a + 3 * (i + nelts / 2) * bytes_per_elem, bytes_per_elem);
+    mempcpy(input_b1 + i * bytes_per_elem, a + 3 * (i + nelts / 2) * bytes_per_elem + bytes_per_elem, bytes_per_elem);
+    mempcpy(input_b2 + i * bytes_per_elem, a + 3 * (i + nelts / 2) * bytes_per_elem + 2 * bytes_per_elem, bytes_per_elem);
   }
 
   my_fixnum_array *in_a0 = my_fixnum_array::create(input_a0, bytes_per_elem * nelts / 2, bytes_per_elem);

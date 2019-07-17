@@ -2,12 +2,16 @@
 
 #include "gpu_constants.cuh"
 #include "gpu_fq.cuh"
+#include "gpu_fq2.cuh"
 
 class GpuParams
 {
   uint8_t mnt_mod[libms_per_elem * sizeof(modnum)];
   fixnum mnt_non_residue[libms_per_elem];
   fixnum mnt_coeff_a[libms_per_elem];
+
+  fixnum mnt_coeff_a2_c0[libms_per_elem];
+  fixnum mnt_coeff_a2_c1[libms_per_elem];
 
 public:
   __device__
@@ -53,6 +57,28 @@ public:
     GpuFq fq = GpuFq::load(coeff_a, mod);
     this->mnt_coeff_a[fixnum::layout::laneIdx()] = fq.data; // save as MM
   }
+
+  __device__
+      GpuFq2
+      get_mnt_coeff_a2()
+  {
+    fixnum coeff_a2_c0 = this->mnt_coeff_a2_c0[fixnum::layout::laneIdx()];
+    fixnum coeff_a2_c1 = this->mnt_coeff_a2_c1[fixnum::layout::laneIdx()];
+
+    modnum mod = this->get_mnt_mod();
+    GpuFq non_residue = this->get_mnt_non_residue();
+    return GpuFq2(GpuFq(coeff_a2_c0, mod), GpuFq(coeff_a2_c1, mod), non_residue); // saved as MM, no need to load
+  }
+
+  __device__ void set_mnt_coeff_a2(fixnum coeff_a2_c0, fixnum coeff_a2_c1)
+  {
+    modnum mod = this->get_mnt_mod();
+    GpuFq fq_c0 = GpuFq::load(coeff_a2_c0, mod);
+    this->mnt_coeff_a2_c0[fixnum::layout::laneIdx()] = fq_c0.data; // save as MM
+
+    GpuFq fq_c1 = GpuFq::load(coeff_a2_c1, mod);
+    this->mnt_coeff_a2_c1[fixnum::layout::laneIdx()] = fq_c1.data; // save as MM
+  }
 };
 
 class HostParams
@@ -60,6 +86,9 @@ class HostParams
   fixnum mnt_mod[libms_per_elem];
   fixnum mnt_non_residue[libms_per_elem];
   fixnum mnt_coeff_a[libms_per_elem];
+
+  fixnum mnt_coeff_a2_c0[libms_per_elem];
+  fixnum mnt_coeff_a2_c1[libms_per_elem];
 
 public:
   __host__ void set_mnt_mod(fixnum *mod)
@@ -96,6 +125,26 @@ public:
       get_mnt_coeff_a()
   {
     return this->mnt_coeff_a;
+  }
+
+  __host__ void set_mnt_coeff_a2(fixnum *coeff_a2_c0, fixnum *coeff_a2_c1)
+  {
+    memcpy(this->mnt_coeff_a2_c0, coeff_a2_c0, bytes_per_elem);
+    memcpy(this->mnt_coeff_a2_c1, coeff_a2_c1, bytes_per_elem);
+  }
+
+  __device__
+      fixnum *
+      get_mnt_coeff_a2_c0()
+  {
+    return this->mnt_coeff_a2_c0;
+  }
+
+  __device__
+      fixnum *
+      get_mnt_coeff_a2_c1()
+  {
+    return this->mnt_coeff_a2_c1;
   }
 };
 
