@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "*.cu": "cpp",
+    "vector": "cpp",
+    "cstring": "cpp",
+    "*.tcc": "cpp",
+    "cstdio": "cpp",
+    "*.cuh": "cpp"
+  }
+}

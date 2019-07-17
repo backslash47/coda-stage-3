@@ -1,0 +1,1 @@
+/usr/local/cuda/bin/nvcc   -Xcompiler -Wall,-Wextra --gpu-code=sm_37 --gpu-architecture=compute_37 -gencode arch=compute_37,code=sm_37 -Xcompiler -Wall,-Wextra --gpu-code=sm_37 --gpu-architecture=compute_37 -Xcompiler=-fPIC -Wno-deprecated-gpu-targets -shared -dlink CMakeFiles/cuda_bench.dir/bench/bench.cu.o -o CMakeFiles/cuda_bench.dir/cmake_device_link.o -lstdc++ 

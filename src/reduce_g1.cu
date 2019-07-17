@@ -1,0 +1,132 @@
+#include "reduce.hpp"
+#include "constants.hpp"
+
+#include "retrieve_utils.cuh"
+#include "gpu_constants.cuh"
+#include "gpu_fq.cuh"
+#include "gpu_g1.cuh"
+#include "gpu_params.cuh"
+
+template <typename fixnum>
+struct reduce_g1_gpu
+{
+  __device__ void operator()(fixnum &r0, fixnum &r1, fixnum &r2, fixnum a0, fixnum a1, fixnum a2, fixnum b0, fixnum b1, fixnum b2) const
+  {
+    GpuParams &params = get_gpu_params();
+    modnum mod = params.get_mnt_mod();
+    GpuFq coeff_a = params.get_mnt_coeff_a();
+
+    GpuG1 gA = GpuG1(GpuFq::load(a0, mod), GpuFq::load(a1, mod), GpuFq::load(a2, mod), coeff_a);
+    GpuG1 gB = GpuG1(GpuFq::load(b0, mod), GpuFq::load(b1, mod), GpuFq::load(b2, mod), coeff_a);
+    GpuG1 fqS = gA + gB;
+
+    fqS.save(r0, r1, r2);
+  }
+};
+
+uint8_t *reduce_g1_internal(my_fixnum_array *res0, my_fixnum_array *res1, my_fixnum_array *res2, my_fixnum_array *in_a0, my_fixnum_array *in_a1, my_fixnum_array *in_a2, my_fixnum_array *in_b0, my_fixnum_array *in_b1, my_fixnum_array *in_b2, int nelts)
+{
+  my_fixnum_array::template map<reduce_g1_gpu>(res0, res1, res2, in_a0, in_a1, in_a2, in_b0, in_b1, in_b2);
+
+  if (nelts == 1)
+  {
+    uint8_t *result = new uint8_t[3 * bytes_per_elem];
+    res0->retrieve_into(result, bytes_per_elem, 0);
+    res1->retrieve_into(result + bytes_per_elem, bytes_per_elem, 0);
+    res2->retrieve_into(result + 2 * bytes_per_elem, bytes_per_elem, 0);
+    return result;
+  }
+  else
+  {
+    // next round
+    // input is previous result divided into two halves
+    my_fixnum_array *new_in_a0 = my_fixnum_array::wrap(res0->get_ptr(), nelts / 2);
+    my_fixnum_array *new_in_b0 = my_fixnum_array::wrap(res0->get_ptr() + bytes_per_elem * nelts / 2, nelts / 2);
+    my_fixnum_array *new_in_a1 = my_fixnum_array::wrap(res1->get_ptr(), nelts / 2);
+    my_fixnum_array *new_in_b1 = my_fixnum_array::wrap(res1->get_ptr() + bytes_per_elem * nelts / 2, nelts / 2);
+    my_fixnum_array *new_in_a2 = my_fixnum_array::wrap(res2->get_ptr(), nelts / 2);
+    my_fixnum_array *new_in_b2 = my_fixnum_array::wrap(res2->get_ptr() + bytes_per_elem * nelts / 2, nelts / 2);
+
+    // uint8_t *res0_binary = new uint8_t[bytes_per_elem * nelts];
+    // uint8_t *res1_binary = new uint8_t[bytes_per_elem * nelts];
+    // uint8_t *res2_binary = new uint8_t[bytes_per_elem * nelts];
+    // int dest_nelts;
+
+    // res0->retrieve_all(res0_binary, bytes_per_elem * nelts, &dest_nelts);
+    // res1->retrieve_all(res1_binary, bytes_per_elem * nelts, &dest_nelts);
+    // res2->retrieve_all(res2_binary, bytes_per_elem * nelts, &dest_nelts);
+
+    // my_fixnum_array *new_in_a0 = my_fixnum_array::create(res0_binary, nelts / 2, bytes_per_elem);
+    // my_fixnum_array *new_in_b0 = my_fixnum_array::create(res0_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
+    // my_fixnum_array *new_in_a1 = my_fixnum_array::create(res1_binary, nelts / 2, bytes_per_elem);
+    // my_fixnum_array *new_in_b1 = my_fixnum_array::create(res1_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
+    // my_fixnum_array *new_in_a2 = my_fixnum_array::create(res2_binary, nelts / 2, bytes_per_elem);
+    // my_fixnum_array *new_in_b2 = my_fixnum_array::create(res2_binary + bytes_per_elem * nelts / 2, nelts / 2, bytes_per_elem);
+
+    // output is reused previous input
+    my_fixnum_array *new_res0 = my_fixnum_array::wrap(in_b0->get_ptr(), nelts / 2);
+    my_fixnum_array *new_res1 = my_fixnum_array::wrap(in_b1->get_ptr(), nelts / 2);
+    my_fixnum_array *new_res2 = my_fixnum_array::wrap(in_b2->get_ptr(), nelts / 2);
+    // my_fixnum_array *new_res0 = my_fixnum_array::create(nelts / 2);
+    // my_fixnum_array *new_res1 = my_fixnum_array::create(nelts / 2);
+    // my_fixnum_array *new_res2 = my_fixnum_array::create(nelts / 2);
+
+    return reduce_g1_internal(new_res0, new_res1, new_res2, new_in_a0, new_in_a1, new_in_a2, new_in_b0, new_in_b1, new_in_b2, nelts / 2);
+  }
+}
+
+uint8_t *reduce_g1(uint8_t *a, int nelts)
+{
+  uint8_t *input_a0 = new uint8_t[bytes_per_elem * nelts / 2];
+  uint8_t *input_a1 = new uint8_t[bytes_per_elem * nelts / 2];
+  uint8_t *input_a2 = new uint8_t[bytes_per_elem * nelts / 2];
+
+  for (int i = 0; i < nelts / 2; i++)
+  {
+    mempcpy(input_a0 + i * bytes_per_elem, a + 2 * i * bytes_per_elem, bytes_per_elem);
+    mempcpy(input_a1 + i * bytes_per_elem, a + 2 * i * bytes_per_elem + bytes_per_elem, bytes_per_elem);
+    mempcpy(input_a2 + i * bytes_per_elem, one, bytes_per_elem);
+  }
+
+  uint8_t *input_b0 = new uint8_t[bytes_per_elem * nelts / 2];
+  uint8_t *input_b1 = new uint8_t[bytes_per_elem * nelts / 2];
+  uint8_t *input_b2 = new uint8_t[bytes_per_elem * nelts / 2];
+
+  for (int i = 0; i < nelts / 2; i++)
+  {
+    mempcpy(input_b0 + i * bytes_per_elem, a + 2 * (i + nelts / 2) * bytes_per_elem, bytes_per_elem);
+    mempcpy(input_b1 + i * bytes_per_elem, a + 2 * (i + nelts / 2) * bytes_per_elem + bytes_per_elem, bytes_per_elem);
+    mempcpy(input_b2 + i * bytes_per_elem, one, bytes_per_elem);
+  }
+
+  my_fixnum_array *in_a0 = my_fixnum_array::create(input_a0, bytes_per_elem * nelts / 2, bytes_per_elem);
+  my_fixnum_array *in_a1 = my_fixnum_array::create(input_a1, bytes_per_elem * nelts / 2, bytes_per_elem);
+  my_fixnum_array *in_a2 = my_fixnum_array::create(input_a2, bytes_per_elem * nelts / 2, bytes_per_elem);
+
+  my_fixnum_array *in_b0 = my_fixnum_array::create(input_b0, bytes_per_elem * nelts / 2, bytes_per_elem);
+  my_fixnum_array *in_b1 = my_fixnum_array::create(input_b1, bytes_per_elem * nelts / 2, bytes_per_elem);
+  my_fixnum_array *in_b2 = my_fixnum_array::create(input_b2, bytes_per_elem * nelts / 2, bytes_per_elem);
+
+  my_fixnum_array *res0 = my_fixnum_array::create(nelts / 2);
+  my_fixnum_array *res1 = my_fixnum_array::create(nelts / 2);
+  my_fixnum_array *res2 = my_fixnum_array::create(nelts / 2);
+
+  uint8_t *v_res = reduce_g1_internal(res0, res1, res2, in_a0, in_a1, in_a2, in_b0, in_b1, in_b2, nelts / 2);
+
+  delete in_a0;
+  delete in_a1;
+  delete in_a2;
+  delete in_b0;
+  delete in_b1;
+  delete in_b2;
+  delete res0;
+  delete res1;
+  delete res2;
+  delete[] input_a0;
+  delete[] input_a1;
+  delete[] input_a2;
+  delete[] input_b0;
+  delete[] input_b1;
+  delete[] input_b2;
+  return v_res;
+}

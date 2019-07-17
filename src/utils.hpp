@@ -1,0 +1,5 @@
+#include <cstdint>
+
+
+void print_array(uint8_t *a);
+void printG1(uint8_t *src);
