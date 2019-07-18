@@ -83,12 +83,6 @@ include_directories(.)
 include_directories(./src)
 include_directories(./cuda-fixnum)
 
-if(${CURVE} STREQUAL "BN128")
-  add_definitions(
-    -DBN_SUPPORT_SNARK=1
-  )
-endif()
-
 if("${DEBUG}")
   add_definitions(-DDEBUG=1)
 endif()
