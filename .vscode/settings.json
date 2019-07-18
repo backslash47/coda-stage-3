@@ -5,6 +5,7 @@
     "cstring": "cpp",
     "*.tcc": "cpp",
     "cstdio": "cpp",
-    "*.cuh": "cpp"
+    "*.cuh": "cpp",
+    "iostream": "cpp"
   }
 }

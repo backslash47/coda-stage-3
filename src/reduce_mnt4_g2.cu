@@ -20,11 +20,13 @@ struct reduce_mnt4_g2_gpu
     GpuFq2 coeff_a2 = params.get_mnt_coeff_a2();
     GpuFq non_residue = params.get_mnt_non_residue();
 
-    GpuG2 gA = GpuG2(GpuFq2(GpuFq::load(a0c0, mod), GpuFq::load(a0c1, mod), non_residue), GpuFq2(GpuFq::load(a1c0, mod), GpuFq::load(a1c1, mod), non_residue), GpuFq2(GpuFq::load(a2c0, mod), GpuFq::load(a2c1, mod), non_residue), coeff_a2);
-    GpuG2 gB = GpuG2(GpuFq2(GpuFq::load(b0c0, mod), GpuFq::load(b0c1, mod), non_residue), GpuFq2(GpuFq::load(b1c0, mod), GpuFq::load(b1c1, mod), non_residue), GpuFq2(GpuFq::load(b2c0, mod), GpuFq::load(b2c1, mod), non_residue), coeff_a2);
-    GpuG2 fqS = gA + gB;
+    GpuG2<GpuFq2> gA = GpuG2<GpuFq2>(GpuFq2(GpuFq::load(a0c0, mod), GpuFq::load(a0c1, mod), non_residue), GpuFq2(GpuFq::load(a1c0, mod), GpuFq::load(a1c1, mod), non_residue), GpuFq2(GpuFq::load(a2c0, mod), GpuFq::load(a2c1, mod), non_residue), coeff_a2);
+    GpuG2<GpuFq2> gB = GpuG2<GpuFq2>(GpuFq2(GpuFq::load(b0c0, mod), GpuFq::load(b0c1, mod), non_residue), GpuFq2(GpuFq::load(b1c0, mod), GpuFq::load(b1c1, mod), non_residue), GpuFq2(GpuFq::load(b2c0, mod), GpuFq::load(b2c1, mod), non_residue), coeff_a2);
+    GpuG2<GpuFq2> fqS = gA + gB;
 
-    fqS.save(r0c0, r0c1, r1c0, r1c1, r2c0, r2c1);
+    fqS.X.save(r0c0, r0c1);
+    fqS.Y.save(r1c0, r1c1);
+    fqS.Z.save(r2c0, r2c1);
   }
 };
 

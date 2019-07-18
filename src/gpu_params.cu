@@ -14,6 +14,7 @@ struct init_params_gpu
     gpu_params.set_mnt_non_residue(array_to_fixnum(host_params.get_mnt_non_residue()));
     gpu_params.set_mnt_coeff_a(array_to_fixnum(host_params.get_mnt_coeff_a()));
     gpu_params.set_mnt_coeff_a2(array_to_fixnum(host_params.get_mnt_coeff_a2_c0()), array_to_fixnum(host_params.get_mnt_coeff_a2_c1()));
+    gpu_params.set_mnt_coeff_a3(array_to_fixnum(host_params.get_mnt_coeff_a3_c0()), array_to_fixnum(host_params.get_mnt_coeff_a3_c1()), array_to_fixnum(host_params.get_mnt_coeff_a3_c2()));
   }
 
   __device__ fixnum array_to_fixnum(fixnum *arr)

@@ -184,6 +184,7 @@ add_executable (
     src/fq3_mul.cu
     src/reduce_g1.cu
     src/reduce_mnt4_g2.cu
+    src/reduce_mnt6_g2.cu
     src/io.cpp
     src/utils.cpp
     src/stage0.cpp

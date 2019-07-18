@@ -25,7 +25,11 @@ void init_params_mnt4()
   memcpy(mnt4_g2_coeff_a2_c1, (void *)mnt4753_G2::coeff_a.c1.as_bigint().data, io_bytes_per_elem);
 
   params.set_mnt_coeff_a2((fixnum *)mnt4_g2_coeff_a2_c0, (fixnum *)mnt4_g2_coeff_a2_c1);
+
   init_params(params);
+
+  delete[] mnt4_g2_coeff_a2_c0;
+  delete[] mnt4_g2_coeff_a2_c1;
 }
 
 void init_params_mnt6()
@@ -34,6 +38,24 @@ void init_params_mnt6()
   params.set_mnt_mod((fixnum *)mnt6_modulus);
   params.set_mnt_non_residue((fixnum *)mnt6_non_residue);
   params.set_mnt_coeff_a((fixnum *)mnt6_g1_coeff_a);
-  // FIXME: params.set_mnt_coeff_a2();
+
+  uint8_t *mnt6_g2_coeff_a3_c0 = new uint8_t[bytes_per_elem];
+  memset(mnt6_g2_coeff_a3_c0, 0, bytes_per_elem);
+  memcpy(mnt6_g2_coeff_a3_c0, (void *)mnt6753_G2::coeff_a.c0.as_bigint().data, io_bytes_per_elem);
+
+  uint8_t *mnt6_g2_coeff_a3_c1 = new uint8_t[bytes_per_elem];
+  memset(mnt6_g2_coeff_a3_c1, 0, bytes_per_elem);
+  memcpy(mnt6_g2_coeff_a3_c1, (void *)mnt6753_G2::coeff_a.c1.as_bigint().data, io_bytes_per_elem);
+
+  uint8_t *mnt6_g2_coeff_a3_c2 = new uint8_t[bytes_per_elem];
+  memset(mnt6_g2_coeff_a3_c2, 0, bytes_per_elem);
+  memcpy(mnt6_g2_coeff_a3_c2, (void *)mnt6753_G2::coeff_a.c2.as_bigint().data, io_bytes_per_elem);
+
+  params.set_mnt_coeff_a3((fixnum *)mnt6_g2_coeff_a3_c0, (fixnum *)mnt6_g2_coeff_a3_c1, (fixnum *)mnt6_g2_coeff_a3_c2);
+
   init_params(params);
+
+  delete[] mnt6_g2_coeff_a3_c0;
+  delete[] mnt6_g2_coeff_a3_c1;
+  delete[] mnt6_g2_coeff_a3_c2;
 }

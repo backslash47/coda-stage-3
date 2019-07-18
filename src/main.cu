@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
   bool is_stage_0 = strcmp(argv[1], "compute-stage-0") == 0;
   bool is_stage_1 = strcmp(argv[1], "compute-stage-1") == 0;
   bool is_stage_2 = strcmp(argv[1], "compute-stage-2") == 0;
-  bool is_stage_3 = strcmp(argv[1], "compute-stage-3") == 0;
+  bool is_stage_3 = strcmp(argv[1], "compute-stage-3") == 0 || strcmp(argv[1], "compute") == 0;
 
   FILE *inputs = fopen(argv[2], "r");
   FILE *outputs = fopen(argv[3], "w");
