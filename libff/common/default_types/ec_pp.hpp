@@ -13,6 +13,8 @@
 #ifndef EC_PP_HPP_
 #define EC_PP_HPP_
 
+#define CURVE_MNT4753
+
 /************************ Pick the elliptic curve ****************************/
 
 #ifdef CURVE_ALT_BN128
