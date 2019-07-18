@@ -1,24 +1,5 @@
 set(FF_EXTRASRCS)
 set(FF_EXTRALIBS)
-if(${CURVE} STREQUAL "BN128")
-  set(
-    FF_EXTRASRCS
-
-    ${FF_EXTRASRCS}
-    algebra/curves/bn128/bn128_g1.cpp
-    algebra/curves/bn128/bn128_g2.cpp
-    algebra/curves/bn128/bn128_gt.cpp
-    algebra/curves/bn128/bn128_init.cpp
-    algebra/curves/bn128/bn128_pairing.cpp
-    algebra/curves/bn128/bn128_pp.cpp
-  )
-  set(
-    FF_EXTRALIBS
-
-    ${FF_EXTRALIBS}
-    zm
-  )
-endif()
 
 add_library(
   ff
